@@ -2,12 +2,15 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
+
+var logger TransactionLogger
 
 func keyValuePutHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r) // Получить ключ из запроса
@@ -30,6 +33,8 @@ func keyValuePutHandler(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError)
 		return
 	}
+
+	logger.WritePut(key, string(value))
 
 	w.WriteHeader(http.StatusCreated) // Все хорошо! Вернуть статус 201
 
@@ -70,10 +75,46 @@ func keyValueDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.WriteDelete(key)
+
 	log.Printf("DELETE key=%s\n", key)
 }
 
+func initializeTransactionLog() error {
+	var err error
+
+	logger, err = NewFileTransactionLogger("transaction.log")
+	if err != nil {
+		return fmt.Errorf("failed to create event logger: %w", err)
+	}
+
+	eventsCh, errorsCh := logger.ReadEvents()
+	e, ok := Event{}, true
+
+	for ok && err == nil {
+		select {
+		case err, ok = <-errorsCh: // Получает ошибки
+		case e, ok = <-eventsCh:
+			switch e.EventType {
+			case EventDelete: // Получено событие DELETE
+				err = Delete(e.Key)
+			case EventPut: // Получено событие PUT
+				err = Put(e.Key, e.Value)
+			}
+		}
+	}
+
+	logger.Run()
+
+	return err
+}
+
 func main() {
+	err := initializeTransactionLog()
+	if err != nil {
+		panic(err)
+	}
+
 	r := mux.NewRouter()
 
 	// Зарегистрировать обработчики HTTP-запросов
