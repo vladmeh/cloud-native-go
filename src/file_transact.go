@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net/url"
 	"os"
+	"sync"
 )
 
 type FileTransactionLogger struct {
@@ -11,13 +13,16 @@ type FileTransactionLogger struct {
 	errors       <-chan error // Канал только для чтения, для приема ошибок
 	lastSequence uint64       // Последний использованный порядковый номер
 	file         *os.File     // Местоположение файла журнала
+	wg           *sync.WaitGroup
 }
 
 func (l *FileTransactionLogger) WritePut(key, value string) {
+	l.wg.Add(1)
 	l.events <- Event{EventType: EventPut, Key: key, Value: value}
 }
 
 func (l *FileTransactionLogger) WriteDelete(key string) {
+	l.wg.Add(1)
 	l.events <- Event{EventType: EventDelete, Key: key}
 }
 
@@ -36,6 +41,9 @@ func (l *FileTransactionLogger) Run() {
 		for e := range events { // Извлечь следующее событие Event
 			l.lastSequence++ // Увеличить порядковый номер
 
+			e.Key = url.QueryEscape(e.Key)
+			e.Value = url.QueryEscape(e.Value)
+
 			_, err := fmt.Fprintf( // Записать событие в журнал
 				l.file,
 				"%d\t%d\t%s\t%s\n",
@@ -45,13 +53,15 @@ func (l *FileTransactionLogger) Run() {
 				errors <- err
 				return
 			}
+
+			l.wg.Done()
 		}
 	}()
 }
 
 func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file) // Создать Scanner для чтения l.file
-	outEvent := make(chan Event)        // Небуферизованный канал событий
+	outEvent := make(chan Event)        // Не буферизованный канал событий
 	outError := make(chan error, 1)     // Буферизованный канал ошибок
 
 	go func() {
@@ -76,6 +86,20 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 				return
 			}
 
+			uk, err := url.QueryUnescape(e.Key)
+			if err != nil {
+				outError <- fmt.Errorf("key decoding failure: %w", err)
+				return
+			}
+
+			uv, err := url.QueryUnescape(e.Value)
+			if err != nil {
+				outError <- fmt.Errorf("value decoding failure: %w", err)
+				return
+			}
+
+			e.Key = uk
+			e.Value = uv
 			l.lastSequence = e.Sequence // Запомнить последний использованный порядковый номер
 
 			outEvent <- e // Отправить событие along
@@ -90,11 +114,28 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	return outEvent, outError
 }
 
-func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+func NewFileTransactionLogger(filename string) (*FileTransactionLogger, error) {
+	var err error
+	var l = FileTransactionLogger{wg: &sync.WaitGroup{}}
+
+	l.file, err = os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open transaction log file: %w", err)
 	}
 
-	return &FileTransactionLogger{file: file}, nil
+	return &l, nil
+}
+
+func (l *FileTransactionLogger) Wait() {
+	l.wg.Wait()
+}
+
+func (l *FileTransactionLogger) Close() error {
+	l.wg.Wait()
+
+	if l.events != nil {
+		close(l.events)
+	}
+
+	return l.file.Close()
 }
