@@ -114,7 +114,7 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	return outEvent, outError
 }
 
-func NewFileTransactionLogger(filename string) (*FileTransactionLogger, error) {
+func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
 	var err error
 	var l = FileTransactionLogger{wg: &sync.WaitGroup{}}
 
@@ -138,4 +138,8 @@ func (l *FileTransactionLogger) Close() error {
 	}
 
 	return l.file.Close()
+}
+
+func (l *FileTransactionLogger) LastSequence() uint64 {
+	return l.lastSequence
 }

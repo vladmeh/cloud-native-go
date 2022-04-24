@@ -24,7 +24,7 @@ func TestCreateLogger(t *testing.T) {
 	}()
 
 	tl, err := NewFileTransactionLogger(filename)
-	defer func(tl *FileTransactionLogger) {
+	defer func(tl TransactionLogger) {
 		_ = tl.Close()
 	}(tl)
 
@@ -56,7 +56,7 @@ func TestWriteAppend(t *testing.T) {
 	}
 
 	tl.Run()
-	defer func(tl *FileTransactionLogger) {
+	defer func(tl TransactionLogger) {
 		_ = tl.Close()
 	}(tl)
 
@@ -73,8 +73,8 @@ func TestWriteAppend(t *testing.T) {
 	tl.WritePut("my-key", "my-value")
 	tl.Wait()
 
-	if tl.lastSequence != 2 {
-		t.Errorf("Last sequence mismatch (expected 2; got %d)", tl.lastSequence)
+	if tl.LastSequence() != 2 {
+		t.Errorf("Last sequence mismatch (expected 2; got %d)", tl.LastSequence())
 	}
 
 	tl2, err := NewFileTransactionLogger(filename)
@@ -83,7 +83,7 @@ func TestWriteAppend(t *testing.T) {
 	}
 
 	tl2.Run()
-	defer func(tl2 *FileTransactionLogger) {
+	defer func(tl2 TransactionLogger) {
 		_ = tl2.Close()
 	}(tl2)
 
@@ -100,8 +100,8 @@ func TestWriteAppend(t *testing.T) {
 	tl2.WritePut("my-key2", "my-value4")
 	tl2.Wait()
 
-	if tl2.lastSequence != 4 {
-		t.Errorf("Last sequence mismatch (expected 4; got %d)", tl2.lastSequence)
+	if tl2.LastSequence() != 4 {
+		t.Errorf("Last sequence mismatch (expected 4; got %d)", tl2.LastSequence())
 	}
 }
 
@@ -114,7 +114,7 @@ func TestWritePut(t *testing.T) {
 	tl, _ := NewFileTransactionLogger(filename)
 	tl.Run()
 
-	defer func(tl *FileTransactionLogger) {
+	defer func(tl TransactionLogger) {
 		_ = tl.Close()
 	}(tl)
 
@@ -126,7 +126,7 @@ func TestWritePut(t *testing.T) {
 
 	tl2, _ := NewFileTransactionLogger(filename)
 	chev, cherr := tl2.ReadEvents()
-	defer func(tl2 *FileTransactionLogger) {
+	defer func(tl2 TransactionLogger) {
 		_ = tl2.Close()
 	}(tl2)
 
@@ -139,7 +139,7 @@ func TestWritePut(t *testing.T) {
 		t.Error(err)
 	}
 
-	if tl.lastSequence != tl2.lastSequence {
-		t.Errorf("Last sequence mismatch (%d vs. %d)", tl.lastSequence, tl2.lastSequence)
+	if tl.LastSequence() != tl2.LastSequence() {
+		t.Errorf("Last sequence mismatch (%d vs. %d)", tl.LastSequence(), tl2.LastSequence())
 	}
 }

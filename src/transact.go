@@ -8,6 +8,10 @@ type TransactionLogger interface {
 	ReadEvents() (<-chan Event, <-chan error)
 
 	Run()
+	Wait()
+	Close() error
+
+	LastSequence() uint64
 }
 
 type EventType byte

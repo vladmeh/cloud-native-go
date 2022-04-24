@@ -83,7 +83,12 @@ func keyValueDeleteHandler(w http.ResponseWriter, r *http.Request) {
 func initializeTransactionLog() error {
 	var err error
 
-	logger, err = NewFileTransactionLogger("transaction.log")
+	logger, err = NewPostgresTransactionLogger(PostgresDBParams{
+		host:     "localhost",
+		dbName:   "cloudnativego",
+		user:     "postgres",
+		password: "root",
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create event logger: %w", err)
 	}
