@@ -94,9 +94,13 @@ func (l *PostgresTransactionLogger) Run() {
 			_, err := l.db.Exec(
 				query,
 				e.EventType, e.Key, e.Value)
+
 			if err != nil {
 				errors <- err
+				return
 			}
+
+			l.wg.Done()
 		}
 	}()
 }
