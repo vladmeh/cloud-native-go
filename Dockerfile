@@ -22,6 +22,9 @@ COPY --from=build /src/kvs .
 # Скопировать имеющиеся файлы PEM
 COPY --from=build /src/*.pem .
 
+# Скопировать файл конфигурации
+COPY --from=build /src/.env .
+
 # Сообщить Docker, что служба будет использовать порт 8080.
 EXPOSE 8080
 

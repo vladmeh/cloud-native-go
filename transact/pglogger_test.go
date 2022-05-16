@@ -1,6 +1,9 @@
-package main
+package transact
 
-import "testing"
+import (
+	"cloudNativeGo/core"
+	"testing"
+)
 
 func TestPostgresTransactionLogger_WritePut(t *testing.T) {
 	params := PostgresDBParams{
@@ -13,7 +16,7 @@ func TestPostgresTransactionLogger_WritePut(t *testing.T) {
 	tl, _ := NewPostgresTransactionLogger(params)
 	tl.Run()
 
-	defer func(tl TransactionLogger) {
+	defer func(tl core.TransactionLogger) {
 		_ = tl.Close()
 	}(tl)
 
@@ -25,7 +28,7 @@ func TestPostgresTransactionLogger_WritePut(t *testing.T) {
 
 	tl2, _ := NewPostgresTransactionLogger(params)
 	chev, cherr := tl2.ReadEvents()
-	defer func(tl2 TransactionLogger) {
+	defer func(tl2 core.TransactionLogger) {
 		_ = tl2.Close()
 	}(tl2)
 

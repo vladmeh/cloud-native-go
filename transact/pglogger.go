@@ -1,6 +1,7 @@
-package main
+package transact
 
 import (
+	"cloudNativeGo/core"
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
@@ -8,7 +9,7 @@ import (
 )
 
 type PostgresTransactionLogger struct {
-	events chan<- Event
+	events chan<- core.Event
 	errors <-chan error
 	db     *sql.DB
 	wg     *sync.WaitGroup
@@ -23,20 +24,20 @@ type PostgresDBParams struct {
 
 func (l *PostgresTransactionLogger) WritePut(key, value string) {
 	l.wg.Add(1)
-	l.events <- Event{EventType: EventPut, Key: key, Value: value}
+	l.events <- core.Event{EventType: core.EventPut, Key: key, Value: value}
 }
 
 func (l *PostgresTransactionLogger) WriteDelete(key string) {
 	l.wg.Add(1)
-	l.events <- Event{EventType: EventDelete, Key: key}
+	l.events <- core.Event{EventType: core.EventDelete, Key: key}
 }
 
 func (l *PostgresTransactionLogger) Err() <-chan error {
 	return l.errors
 }
 
-func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
-	outEvent := make(chan Event)
+func (l *PostgresTransactionLogger) ReadEvents() (<-chan core.Event, <-chan error) {
+	outEvent := make(chan core.Event)
 	outError := make(chan error, 1)
 
 	query := `SELECT sequence, event_type, key, value FROM transactions ORDER BY sequence`
@@ -55,7 +56,7 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 			_ = rows.Close()
 		}(rows)
 
-		var e Event
+		var e core.Event
 
 		for rows.Next() {
 
@@ -81,7 +82,7 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 }
 
 func (l *PostgresTransactionLogger) Run() {
-	events := make(chan Event, 16)
+	events := make(chan core.Event, 16)
 	l.events = events
 
 	errors := make(chan error, 1)
@@ -163,7 +164,7 @@ func (l *PostgresTransactionLogger) LastSequence() uint64 {
 	return 0
 }
 
-func NewPostgresTransactionLogger(config PostgresDBParams) (TransactionLogger, error) {
+func NewPostgresTransactionLogger(config PostgresDBParams) (core.TransactionLogger, error) {
 	connStr := fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=disable",
 		config.host, config.dbName, config.user, config.password)
 

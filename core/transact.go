@@ -1,4 +1,4 @@
-package main
+package core
 
 type TransactionLogger interface {
 	WriteDelete(key string)

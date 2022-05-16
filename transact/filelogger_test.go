@@ -1,6 +1,7 @@
-package main
+package transact
 
 import (
+	"cloudNativeGo/core"
 	"os"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestCreateLogger(t *testing.T) {
 	}()
 
 	tl, err := NewFileTransactionLogger(filename)
-	defer func(tl TransactionLogger) {
+	defer func(tl core.TransactionLogger) {
 		_ = tl.Close()
 	}(tl)
 
@@ -56,7 +57,7 @@ func TestWriteAppend(t *testing.T) {
 	}
 
 	tl.Run()
-	defer func(tl TransactionLogger) {
+	defer func(tl core.TransactionLogger) {
 		_ = tl.Close()
 	}(tl)
 
@@ -83,7 +84,7 @@ func TestWriteAppend(t *testing.T) {
 	}
 
 	tl2.Run()
-	defer func(tl2 TransactionLogger) {
+	defer func(tl2 core.TransactionLogger) {
 		_ = tl2.Close()
 	}(tl2)
 
@@ -114,7 +115,7 @@ func TestWritePut(t *testing.T) {
 	tl, _ := NewFileTransactionLogger(filename)
 	tl.Run()
 
-	defer func(tl TransactionLogger) {
+	defer func(tl core.TransactionLogger) {
 		_ = tl.Close()
 	}(tl)
 
@@ -126,7 +127,7 @@ func TestWritePut(t *testing.T) {
 
 	tl2, _ := NewFileTransactionLogger(filename)
 	chev, cherr := tl2.ReadEvents()
-	defer func(tl2 TransactionLogger) {
+	defer func(tl2 core.TransactionLogger) {
 		_ = tl2.Close()
 	}(tl2)
 

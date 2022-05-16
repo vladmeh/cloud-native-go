@@ -1,7 +1,8 @@
-package main
+package transact
 
 import (
 	"bufio"
+	"cloudNativeGo/core"
 	"fmt"
 	"net/url"
 	"os"
@@ -9,21 +10,21 @@ import (
 )
 
 type FileTransactionLogger struct {
-	events       chan<- Event // Канал только для записи, для передачи событий
-	errors       <-chan error // Канал только для чтения, для приема ошибок
-	lastSequence uint64       // Последний использованный порядковый номер
-	file         *os.File     // Местоположение файла журнала
+	events       chan<- core.Event // Канал только для записи, для передачи событий
+	errors       <-chan error      // Канал только для чтения, для приема ошибок
+	lastSequence uint64            // Последний использованный порядковый номер
+	file         *os.File          // Местоположение файла журнала
 	wg           *sync.WaitGroup
 }
 
 func (l *FileTransactionLogger) WritePut(key, value string) {
 	l.wg.Add(1)
-	l.events <- Event{EventType: EventPut, Key: key, Value: value}
+	l.events <- core.Event{EventType: core.EventPut, Key: key, Value: value}
 }
 
 func (l *FileTransactionLogger) WriteDelete(key string) {
 	l.wg.Add(1)
-	l.events <- Event{EventType: EventDelete, Key: key}
+	l.events <- core.Event{EventType: core.EventDelete, Key: key}
 }
 
 func (l *FileTransactionLogger) Err() <-chan error {
@@ -31,7 +32,7 @@ func (l *FileTransactionLogger) Err() <-chan error {
 }
 
 func (l *FileTransactionLogger) Run() {
-	events := make(chan Event, 16) // Создать канал событий
+	events := make(chan core.Event, 16) // Создать канал событий
 	l.events = events
 
 	errors := make(chan error, 1) // Создать канал ошибок
@@ -59,13 +60,13 @@ func (l *FileTransactionLogger) Run() {
 	}()
 }
 
-func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
+func (l *FileTransactionLogger) ReadEvents() (<-chan core.Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file) // Создать Scanner для чтения l.file
-	outEvent := make(chan Event)        // Не буферизованный канал событий
+	outEvent := make(chan core.Event)   // Не буферизованный канал событий
 	outError := make(chan error, 1)     // Буферизованный канал ошибок
 
 	go func() {
-		var e Event
+		var e core.Event
 
 		defer close(outEvent) // Закрыть каналы
 		defer close(outError) // по завершении сопрограммы
@@ -114,7 +115,7 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	return outEvent, outError
 }
 
-func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
+func NewFileTransactionLogger(filename string) (core.TransactionLogger, error) {
 	var err error
 	var l = FileTransactionLogger{wg: &sync.WaitGroup{}}
 
